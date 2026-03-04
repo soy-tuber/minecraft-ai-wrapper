@@ -70,7 +70,7 @@ A minimal architecture for controlling a Minecraft bot through natural language,
 
 Tested with [NVIDIA Nemotron-Nano-9B-v2-Japanese](https://huggingface.co/nvidia/NVIDIA-Nemotron-Nano-9B-v2-Japanese) on RTX 5090 (32GB VRAM), served via [vLLM](https://docs.vllm.ai/). The Brain communicates through the OpenAI-compatible chat completions API.
 
-For setup instructions, see [`docs/setup_en.txt`](docs/setup_en.txt) (English) or [`docs/setup_ja.txt`](docs/setup_ja.txt) (Japanese).
+For setup instructions, see [`setup_en.txt`](setup_en.txt) (English) or [`setup_ja.txt`](setup_ja.txt) (Japanese).
 
 ## Related Work
 
