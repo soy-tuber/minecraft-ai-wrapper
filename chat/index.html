@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nemobot Chat</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #fff;
+    color: #222;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  #header {
+    background: #fafafa;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #ddd;
+  }
+  #header h1 {
+    font-size: 1.2em;
+    color: #222;
+  }
+  #status {
+    font-size: 0.8em;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: #e0e0e0;
+    color: #666;
+  }
+  #status.connected { background: #222; color: #fff; }
+  #player-name {
+    margin-left: auto;
+    background: #fff;
+    border: 1px solid #ccc;
+    color: #222;
+    padding: 4px 10px;
+    border-radius: 6px;
+    width: 140px;
+    font-size: 0.9em;
+  }
+  #chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .msg {
+    padding: 8px 14px;
+    border-radius: 12px;
+    max-width: 85%;
+    word-wrap: break-word;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .msg.player {
+    background: #f0f0f0;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+  }
+  .msg.bot {
+    background: #e8e8e8;
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+  }
+  .msg.system {
+    background: transparent;
+    color: #999;
+    font-size: 0.8em;
+    align-self: center;
+  }
+  .msg .sender {
+    font-size: 0.75em;
+    color: #888;
+    margin-bottom: 2px;
+  }
+  .msg.bot .sender { color: #444; font-weight: bold; }
+  #input-area {
+    padding: 12px 16px;
+    background: #fafafa;
+    border-top: 1px solid #ddd;
+    display: flex;
+    gap: 8px;
+  }
+  #message-input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid #ccc;
+    background: #fff;
+    color: #222;
+    border-radius: 24px;
+    font-size: 1em;
+    outline: none;
+  }
+  #message-input:focus { border-color: #666; }
+  #send-btn {
+    padding: 12px 24px;
+    background: #222;
+    color: #fff;
+    border: none;
+    border-radius: 24px;
+    font-size: 1em;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  #send-btn:hover { background: #444; }
+  #send-btn:disabled { background: #bbb; cursor: not-allowed; }
+  #quick-actions {
+    padding: 8px 16px;
+    background: #fafafa;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .quick-btn {
+    padding: 6px 14px;
+    background: #f0f0f0;
+    color: #444;
+    border: 1px solid #ccc;
+    border-radius: 16px;
+    font-size: 0.8em;
+    cursor: pointer;
+  }
+  .quick-btn:hover { background: #ddd; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>Nemobot</h1>
+  <span id="status">Connecting...</span>
+  <input type="text" id="player-name" placeholder="Your name" value="Player1">
+</div>
+
+<div id="chat-area"></div>
+
+<div id="quick-actions">
+  <button class="quick-btn" data-msg="come here">Come here</button>
+  <button class="quick-btn" data-msg="guard me">Guard me</button>
+  <button class="quick-btn" data-msg="cut a tree">Cut tree</button>
+  <button class="quick-btn" data-msg="kill the sheep">Kill sheep</button>
+  <button class="quick-btn" data-msg="hunt all sheep">Hunt sheep</button>
+  <button class="quick-btn" data-msg="dance!">Dance</button>
+  <button class="quick-btn" data-msg="look around">Look around</button>
+  <button class="quick-btn" data-msg="stop">Stop</button>
+</div>
+
+<div id="input-area">
+  <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off">
+  <button id="send-btn">Send</button>
+</div>
+
+<script>
+const chatArea = document.getElementById('chat-area')
+const messageInput = document.getElementById('message-input')
+const sendBtn = document.getElementById('send-btn')
+const playerNameInput = document.getElementById('player-name')
+const statusEl = document.getElementById('status')
+
+let lastTime = 0
+let connected = false
+
+function addMessage(sender, text, type) {
+  const div = document.createElement('div')
+  div.className = 'msg ' + type
+
+  if (type !== 'system') {
+    const senderEl = document.createElement('div')
+    senderEl.className = 'sender'
+    senderEl.textContent = sender
+    div.appendChild(senderEl)
+
+    const textEl = document.createTextNode(text)
+    div.appendChild(textEl)
+  } else {
+    div.textContent = text
+  }
+
+  chatArea.appendChild(div)
+  chatArea.scrollTop = chatArea.scrollHeight
+}
+
+async function sendMessage(text) {
+  if (!text.trim()) return
+  const player = playerNameInput.value.trim() || 'Player1'
+
+  sendBtn.disabled = true
+  messageInput.value = ''
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player: player, message: text })
+    })
+    if (!res.ok) throw new Error('Server error')
+  } catch (e) {
+    addMessage('', 'Failed to send message', 'system')
+  }
+  sendBtn.disabled = false
+  messageInput.focus()
+}
+
+async function pollLog() {
+  try {
+    const res = await fetch('/api/log?since=' + lastTime)
+    if (!res.ok) throw new Error()
+
+    const messages = await res.json()
+    messages.forEach(function(m) {
+      if (m.time > lastTime) lastTime = m.time
+      var type = m.sender === 'Nemobot' ? 'bot' : 'player'
+      addMessage(m.sender, m.text, type)
+    })
+
+    if (!connected) {
+      connected = true
+      statusEl.textContent = 'Connected'
+      statusEl.className = 'connected'
+    }
+  } catch (e) {
+    if (connected) {
+      connected = false
+      statusEl.textContent = 'Disconnected'
+      statusEl.className = ''
+    }
+  }
+}
+
+sendBtn.addEventListener('click', function() { sendMessage(messageInput.value) })
+messageInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') sendMessage(messageInput.value)
+})
+
+document.querySelectorAll('.quick-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() { sendMessage(btn.dataset.msg) })
+})
+
+setInterval(pollLog, 1000)
+pollLog()
+
+addMessage('', 'Chat ready. Type a message or use quick actions.', 'system')
+</script>
+</body>
+</html>

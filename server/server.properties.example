@@ -1,0 +1,8 @@
+# Minecraft Server Properties (example)
+# Copy this to server.properties and edit as needed
+server-port=25565
+gamemode=survival
+difficulty=easy
+max-players=10
+online-mode=false
+enable-command-block=true

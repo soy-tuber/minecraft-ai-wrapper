@@ -1,0 +1,36 @@
+# Node
+node_modules/
+package-lock.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+uv.lock
+
+# Logs
+*.log
+logs/
+
+# Runtime
+.pids
+vllm.log
+
+# Minecraft server data
+server/world/
+server/usercache.json
+server/ops.json
+server/whitelist.json
+server/banned-*.json
+server/server.properties
+server/cache/
+server/versions/
+server/libraries/
+server/*.jar
+
+# Environment
+.env
+.env.local
+
+# Private notes
+起動手順.txt
