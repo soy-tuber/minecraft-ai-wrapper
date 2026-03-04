@@ -68,13 +68,27 @@ A minimal architecture for controlling a Minecraft bot through natural language,
 
 ## Setup
 
+### GPU Requirements
+
+The Brain communicates with any OpenAI-compatible API, so the model and backend are your choice.
+
+| GPU | VRAM | Recommended Models |
+|-----|------|--------------------|
+| RTX 3060 / 4060 | 12GB | Gemma 2 2B, Qwen2.5 3B, Llama 3.2 3B |
+| RTX 4070 Ti Super | 16GB | Nemotron 9B (INT4), Qwen2.5 7B |
+| RTX 4090 / 5090 | 24-32GB | Nemotron 9B (FP16), any 7-9B model |
+
+2-3B models are sufficient for command extraction. Larger models improve chat quality.
+
 ### Prerequisites
 
 - Minecraft Java Edition
 - Node.js
 - Python 3.12+ with [uv](https://docs.astral.sh/uv/)
-- NVIDIA GPU with sufficient VRAM for the target model
-- vLLM (`uv add vllm` in the brain project or a separate environment)
+- One of the following LLM backends:
+  - [vLLM](https://docs.vllm.ai/) (recommended for NVIDIA GPUs)
+  - [Ollama](https://ollama.com/) (easiest setup)
+  - [LM Studio](https://lmstudio.ai/) (GUI)
 
 ### Installation
 
@@ -112,10 +126,43 @@ cd /path/to/vllm-environment && uv run vllm serve nvidia/NVIDIA-Nemotron-Nano-9B
 
 ### Configuration
 
-The Brain (`brain/brain.py`) can be configured by editing:
+Edit `brain/brain.py` to switch LLM backends. Only two variables need to change:
 
-- `VLLM_URL` — vLLM endpoint (default: `http://localhost:8000/v1/chat/completions`)
-- `MODEL_NAME` — Model identifier
+#### vLLM (default)
+
+```python
+VLLM_URL = "http://localhost:8000/v1/chat/completions"
+MODEL_NAME = "nvidia/NVIDIA-Nemotron-Nano-9B-v2-Japanese"
+```
+
+```bash
+uv run vllm serve nvidia/NVIDIA-Nemotron-Nano-9B-v2-Japanese \
+    --max-model-len 32768 --gpu-memory-utilization 0.9 --trust-remote-code
+```
+
+#### Ollama
+
+```python
+VLLM_URL = "http://localhost:11434/v1/chat/completions"
+MODEL_NAME = "gemma2:2b"
+```
+
+```bash
+ollama pull gemma2:2b
+ollama serve
+```
+
+#### LM Studio
+
+```python
+VLLM_URL = "http://localhost:1234/v1/chat/completions"
+MODEL_NAME = "your-loaded-model-name"
+```
+
+Start the server from LM Studio GUI.
+
+#### Other settings
+
 - `SYSTEM_PROMPT` — Action definitions and behavioral instructions
 - `MAX_HISTORY` — Conversation history length per player
 
@@ -143,7 +190,7 @@ This project draws on a growing body of research on LLM-powered agents in Minecr
 - **No visual perception.** The bot operates on game state (entity positions, block types) via Mineflayer, not screen pixels or multimodal input.
 - **Fixed action set.** New actions require adding both prompt examples and handler code.
 - **No long-term memory.** Conversation history is capped and in-memory only.
-- **Single model dependency.** Prompt format is tuned for Nemotron; other models may require prompt adjustments.
+- **Prompt sensitivity.** Smaller models may not follow the `[思考]`/`[実行]` format consistently. Adjust few-shot examples if needed.
 
 ## License
 
