@@ -35,6 +35,8 @@ SYSTEM_PROMPT = """
 10. LOOK_AROUND() - 周囲のMobやプレイヤーを報告
 11. GO_TO("x y z") - 指定座標に移動（例: "100 64 200"）
 12. DROP_ITEMS() - 持ち物を全部落とす
+13. COLLECT() - 近くに落ちているアイテムを拾い集める
+14. GIVE() - プレイヤーのところに行ってアイテムを渡す
 
 例:
 ユーザー: "come here"
@@ -73,9 +75,17 @@ SYSTEM_PROMPT = """
 [思考] 座標に移動。
 [実行] GO_TO("100 64 200")
 
-ユーザー: "drop your items" / "give me your stuff"
-[思考] アイテムを渡す。
+ユーザー: "drop your items"
+[思考] アイテムを落とす。
 [実行] DROP_ITEMS()
+
+ユーザー: "pick up items" / "collect"
+[思考] 落ちているアイテムを拾う。
+[実行] COLLECT()
+
+ユーザー: "give me your stuff" / "bring items"
+[思考] プレイヤーにアイテムを届ける。
+[実行] GIVE()
 
 ユーザー: "hello" / "hi"
 [思考] 挨拶。
@@ -103,7 +113,7 @@ def extract_action(text):
     if match:
         return match.group(1), match.group(2).strip('"')
     # [実行]がなくてもコマンドパターンを拾う
-    cmd_match = re.search(r'(CHAT|FOLLOW|STOP|ATTACK|HUNT|DIG_TREE|DIG_DOWN|GUARD|DANCE|LOOK_AROUND|GO_TO|DROP_ITEMS)\("?(.*?)"?\)', text)
+    cmd_match = re.search(r'(CHAT|FOLLOW|STOP|ATTACK|HUNT|DIG_TREE|DIG_DOWN|GUARD|DANCE|LOOK_AROUND|GO_TO|DROP_ITEMS|COLLECT|GIVE)\("?(.*?)"?\)', text)
     if cmd_match:
         return cmd_match.group(1), cmd_match.group(2)
     return "CHAT", "うーん、よく分からなかった..."
@@ -151,7 +161,12 @@ def ask():
         print(f"Raw Output: {raw_content}")
         
         action_type, action_value = extract_action(raw_content)
-        
+
+        # STOPで履歴リセット（混乱状態を解消）
+        if action_type == "STOP":
+            chat_history[player_name] = []
+            return jsonify({"action": "STOP", "value": "", "raw": raw_content})
+
         # 履歴にはテキストのみ保存（または整形して保存）
         chat_history[player_name].append({"role": "assistant", "content": raw_content})
 

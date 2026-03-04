@@ -25,15 +25,33 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+// ========== 斧管理 ==========
+const AXE_NAMES = ['wooden_axe', 'stone_axe', 'iron_axe', 'golden_axe', 'diamond_axe', 'netherite_axe']
+
+function isAxe(item) {
+  return AXE_NAMES.includes(item.name)
+}
+
+async function equipAxe() {
+  const axe = bot.inventory.items().find(isAxe)
+  if (axe) {
+    try { await bot.equip(axe, 'hand') } catch (e) { /* ignore */ }
+  }
+}
+
+// ========== 停止フラグ ==========
+let stopped = false
+
 // ========== ATTACK (単体) ==========
 let currentAttack = null
 
-function attackEntity(entityName) {
+async function attackEntity(entityName) {
   const target = bot.nearestEntity(e => e.name === entityName)
   if (!target) {
     bot.chat(`${entityName} が見つかりません。`)
     return
   }
+  await equipAxe()
   bot.chat(`${entityName} を攻撃します!`)
   bot.pathfinder.setGoal(new GoalFollow(target, 2), true)
 
@@ -69,15 +87,16 @@ async function huntAll(mobName) {
     bot.chat(`${mobName} が見つかりません。`)
     return
   }
+  await equipAxe()
   bot.chat(`周りの ${mobName} を狩ります!`)
 
-  while (count < 20) {
+  while (count < 20 && !stopped) {
     const t = bot.nearestEntity(e => e.name === mobName && e.isValid)
     if (!t) break
 
     bot.pathfinder.setGoal(new GoalFollow(t, 2), true)
     let attempts = 0
-    while (t.isValid && attempts < 30) {
+    while (t.isValid && attempts < 30 && !stopped) {
       if (bot.entity.position.distanceTo(t.position) < 4) {
         bot.attack(t)
       }
@@ -107,13 +126,14 @@ async function digTree() {
     return
   }
 
+  await equipAxe()
   bot.chat('木を切りに行きます!')
   try {
     await bot.pathfinder.goto(new GoalNear(logBlock.position.x, logBlock.position.y, logBlock.position.z, 1))
     // 幹を下から上に全部切る
     let block = logBlock
     let cut = 0
-    while (block && logIds.includes(block.type)) {
+    while (block && logIds.includes(block.type) && !stopped) {
       await bot.dig(block)
       cut++
       block = bot.blockAt(block.position.offset(0, 1, 0))
@@ -234,7 +254,7 @@ async function digDown(depth) {
   bot.chat(`${d}ブロック階段を掘ります!`)
   try {
     const startPos = bot.entity.position.clone()
-    for (let i = 0; i < d; i++) {
+    for (let i = 0; i < d && !stopped; i++) {
       // 足元と前方を掘る
       const below = bot.blockAt(bot.entity.position.offset(0, -1, 0))
       if (below && below.name !== 'air' && below.name !== 'bedrock') {
@@ -266,6 +286,55 @@ async function digDown(depth) {
   }
 }
 
+// ========== COLLECT (アイテム拾い) ==========
+async function collectItems() {
+  const items = Object.values(bot.entities).filter(e =>
+    e.name === 'item' && bot.entity.position.distanceTo(e.position) < 32
+  )
+  if (items.length === 0) {
+    bot.chat('近くにアイテムが落ちていません。')
+    return
+  }
+  bot.chat(`${items.length}個のアイテムを拾いに行きます!`)
+  let collected = 0
+  for (const item of items) {
+    if (!item.isValid) continue
+    try {
+      await bot.pathfinder.goto(new GoalNear(item.position.x, item.position.y, item.position.z, 0))
+      collected++
+      await sleep(300)
+    } catch (e) { /* skip unreachable */ }
+  }
+  await equipAxe()
+  bot.chat(`${collected}個拾いました!`)
+}
+
+// ========== GIVE (プレイヤーに渡す) ==========
+async function giveItems(username) {
+  const items = bot.inventory.items()
+  if (items.length === 0) {
+    bot.chat('持ち物がありません。')
+    return
+  }
+  let target = bot.players[username]?.entity
+  if (!target) {
+    target = bot.nearestEntity(e => e.type === 'player')
+  }
+  if (!target) {
+    bot.chat('プレイヤーが見つかりません。')
+    return
+  }
+  bot.chat(`${username} にアイテムを渡しに行きます!`)
+  try {
+    await bot.pathfinder.goto(new GoalNear(target.position.x, target.position.y, target.position.z, 2))
+  } catch (e) { /* best effort */ }
+  for (const item of bot.inventory.items()) {
+    if (isAxe(item)) continue
+    try { await bot.tossStack(item) } catch (e) { /* ignore */ }
+  }
+  bot.chat('渡しました!')
+}
+
 // ========== DROP_ITEMS ==========
 async function dropItems() {
   const items = bot.inventory.items()
@@ -273,8 +342,13 @@ async function dropItems() {
     bot.chat('持ち物がありません。')
     return
   }
-  bot.chat(`${items.length}種類のアイテムを落とします!`)
-  for (const item of items) {
+  const toDrop = items.filter(item => !isAxe(item))
+  if (toDrop.length === 0) {
+    bot.chat('斧以外の持ち物がありません。')
+    return
+  }
+  bot.chat(`${toDrop.length}種類のアイテムを落とします! (斧はキープ)`)
+  for (const item of toDrop) {
     try {
       await bot.tossStack(item)
     } catch (e) { /* ignore */ }
@@ -284,6 +358,7 @@ async function dropItems() {
 
 // ========== STOP ALL ==========
 function stopAllActions() {
+  stopped = true
   if (currentAttack) {
     clearInterval(currentAttack)
     currentAttack = null
@@ -293,6 +368,7 @@ function stopAllActions() {
     guardInterval = null
   }
   bot.pathfinder.setGoal(null)
+  bot.stopDigging()
   bot.setControlState('forward', false)
   bot.setControlState('jump', false)
   bot.setControlState('sneak', false)
@@ -400,6 +476,7 @@ app.post('/api/chat', async (req, res) => {
 
 // アクション実行を共通関数に
 function executeAction(action, value, username) {
+  if (action !== 'STOP') stopped = false
   switch (action) {
     case 'FOLLOW': {
       // まずユーザー名で探す、なければ最寄りのプレイヤーに向かう
@@ -446,6 +523,12 @@ function executeAction(action, value, username) {
       break
     case 'DROP_ITEMS':
       dropItems()
+      break
+    case 'COLLECT':
+      collectItems()
+      break
+    case 'GIVE':
+      giveItems(username)
       break
     case 'CHAT':
     default:

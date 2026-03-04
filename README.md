@@ -52,7 +52,9 @@ A minimal architecture for controlling a Minecraft bot through natural language,
 | `DANCE()` | Perform a dance animation |
 | `LOOK_AROUND()` | Report nearby entities and position |
 | `GO_TO("x y z")` | Navigate to coordinates |
-| `DROP_ITEMS()` | Drop all inventory items |
+| `DROP_ITEMS()` | Drop all inventory items (keeps axes) |
+| `COLLECT()` | Pick up nearby dropped items |
+| `GIVE()` | Walk to the player and hand over items |
 
 ## Design Decisions
 
