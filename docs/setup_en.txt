@@ -1,6 +1,12 @@
 Nemobot Setup Manual
 ================================
 
+■ Verified Environment
+
+  Tested with nvidia/NVIDIA-Nemotron-Nano-9B-v2-Japanese + RTX 5090 + vLLM.
+  https://huggingface.co/nvidia/NVIDIA-Nemotron-Nano-9B-v2-Japanese
+  For 40-series or below, lighter models are recommended. Use at your own risk.
+
 ■ Requirements
 
 - Minecraft Java Edition
