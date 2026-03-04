@@ -1,0 +1,86 @@
+Nemobot セットアップマニュアル
+================================
+
+■ 必要なもの
+
+- Minecraft Java Edition
+- Node.js
+- Python 3.12+ と uv (https://docs.astral.sh/uv/)
+- NVIDIA GPU (VRAM 24GB以上推奨)
+- vLLM
+
+■ インストール
+
+  git clone https://github.com/soy-tuber/minecraft-ai-wrapper.git
+  cd minecraft-ai-wrapper
+
+  # Bot (Node.js)
+  cd bot && npm install && cd ..
+
+  # Brain (Python)
+  cd brain && uv sync && cd ..
+
+  # Minecraft Server
+  cd server
+  # server.jar (Minecraft 1.21.x) をダウンロードして配置
+  # server.properties.example を server.properties にコピーして編集
+  # EULA同意: echo "eula=true" > eula.txt
+  cd ..
+
+  # vLLM (別環境でも可)
+  uv add vllm
+
+■ 起動手順 (ターミナル3つ使用)
+
+  1. Minecraft を起動 (Windows / Mac)
+
+  2. ターミナル1: サーバー起動
+     cd server && ./start.sh
+
+  3. Minecraft からサーバーに接続 (localhost)
+
+  4. ターミナル2: vLLM 起動
+     uv run vllm serve nvidia/NVIDIA-Nemotron-Nano-9B-v2-Japanese \
+         --max-model-len 32768 --gpu-memory-utilization 0.9 --trust-remote-code
+
+  5. ターミナル3: ラッパー起動
+     ./start.sh
+
+■ 停止方法
+
+  ラッパー: Ctrl+C または ./start.sh stop
+  vLLM: Ctrl+C
+  サーバー: Ctrl+C
+
+■ 使い方
+
+  ゲーム内チャットで話しかけるとBotが応答します。
+  日本語・英語どちらでも通じます。
+
+  コマンド例:
+    "come here"          → ついてくる
+    "cut a tree"         → 近くの木を切る
+    "kill the sheep"     → 羊を1匹攻撃
+    "hunt all sheep"     → 周りの羊を全部狩る
+    "guard me"           → ボディガードモード
+    "collect items"      → 落ちてるアイテムを拾う
+    "give me your stuff" → アイテムをプレイヤーに渡す
+    "look around"        → 周囲を報告
+    "dance!"             → ダンス
+    "stop"               → 全停止
+
+■ Chat UI
+
+  Bot起動時にポート3001でWebサーバーが立ちます。
+  http://localhost:3001 でブラウザからも操作可能です。
+
+■ トラブルシューティング
+
+  Q: "よくわからなかった" が連発する
+  A: "stop" と言って会話履歴をリセットしてください。
+
+  Q: Botがアイテムを拾わない
+  A: "collect items" で拾い集めます。その後 "give me" で渡せます。
+
+  Q: 斧を渡したい
+  A: Botの近くに斧を落としてください。"collect" で拾って自動装備します。
